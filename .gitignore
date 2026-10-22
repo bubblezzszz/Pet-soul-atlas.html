@@ -1,0 +1,10 @@
+# raw questlog dumps and build intermediates (regenerate with scripts/fetch.py + build.py)
+scripts/db.json
+scripts/markers.json
+scripts/regions.json
+scripts/data.json
+scripts/icons/
+scripts/*.jpg
+scripts/sheet_order.json
+*.pyc
+__pycache__/

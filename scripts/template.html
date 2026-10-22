@@ -1,0 +1,321 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pet Soul Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: full-height map with a filter bar on top and a pet list on the left; one pin per pet per zone */
+:root{
+  --bg:#0d1117; --panel:#151b24; --panel2:#1c2430; --line:#2a3443; --ink:#e7e2d6; --muted:#8e98a8;
+  --gold:#d9b45a; --land:#1d2a33; --land2:#24343f; --landline:#3a5160; --water:#0a1218;
+  --cogni:#5aa2ff; --fera:#ff7a45; --natura:#62d36f; --varian:#b57cff; --special:#f2c94c;
+  --display:"Marcellus SC",Georgia,serif; --body:"Barlow",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;margin:0;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100%}
+header{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding-block:10px;padding-inline:16px;background:var(--panel);border-bottom:1px solid var(--line)}
+h1{font-family:var(--display);font-weight:400;font-size:1.25rem;margin:0;color:var(--gold);letter-spacing:.04em;white-space:nowrap}
+.grp{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.grp .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-right:2px}
+button.chip{font:inherit;font-size:.85rem;font-weight:600;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+button.chip[aria-pressed="true"]{border-color:var(--gold);background:#2a2618;color:#fff}
+button.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--c)}
+button.chip.zone{font-family:var(--display);font-weight:400;font-size:.95rem;border-radius:6px}
+button.chip:focus-visible,input:focus-visible,.row:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.search{flex:1 1 160px;min-width:0;max-width:260px}
+.search input{width:100%;box-sizing:border-box;font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:6px 10px}
+main{display:grid;grid-template-columns:300px 1fr;min-height:0}
+aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.sum{padding:10px 14px;border-bottom:1px solid var(--line);font-size:.82rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.sum b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.list{overflow:auto;flex:1;min-height:0}
+.row.isdone{opacity:.55}
+.row .done{width:26px;height:26px;border-radius:6px;border:1.5px solid var(--line);background:transparent;color:transparent;font-size:.9rem;font-weight:700;cursor:pointer;display:grid;place-items:center;padding:0}
+.row .done:hover{border-color:#62d36f;color:#62d36f88}
+.row .done[aria-pressed="true"]{background:#1f3a24;border-color:#62d36f;color:#62d36f}
+.row .done:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.row{display:grid;grid-template-columns:38px 1fr auto 26px;gap:10px;align-items:center;padding:6px 12px;border-bottom:1px solid #1b222c;cursor:pointer}
+.row:hover,.row.sel{background:var(--panel2)}
+.row img{width:38px;height:38px;border-radius:6px;object-fit:cover;border:2px solid var(--c);background:#0006}
+.row .nm{font-weight:600;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sub{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{font-family:var(--mono);font-size:.7rem;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.st.max{background:#3a3016;color:var(--gold)} .st.lv{background:#1f2c3a;color:#9cc8ff} .st.no{background:#2c1d1d;color:#ff9a8a}
+.only{font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#ff9fb8;background:#3a1f2a;border-radius:3px;padding:1px 5px;margin-right:6px}
+.sect{padding:8px 14px 4px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--bg);position:sticky;top:0;z-index:1}
+.mapwrap{position:relative;min-width:0;min-height:0;background:#e6dfcd;overflow:hidden;touch-action:none}
+#map{width:100%;height:100%;display:block;cursor:grab}
+#map.drag{cursor:grabbing}
+.legend svg{flex:none}
+.rg{fill:transparent;stroke:#2a1f1066;vector-effect:non-scaling-stroke;stroke-width:1;stroke-dasharray:4 3;display:none}
+.showzones .rg{display:inline}
+.rl{fill:#2a1f10;font-family:var(--display);paint-order:stroke;stroke:#f4ecd8;stroke-width:3px;pointer-events:none;text-anchor:middle}
+.rl.small{fill:#5a4a33}
+.pin{cursor:pointer}
+.pin circle.body{stroke:#0b0f14;vector-effect:non-scaling-stroke}
+.legend{position:absolute;right:12px;bottom:12px;background:#151b24e6;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.78rem;display:grid;gap:5px;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:8px}
+.zoom{position:absolute;right:12px;top:12px;display:grid;gap:4px}
+.zoom button{width:32px;height:32px;font-size:1.1rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+/* tooltip card — styled after the in-game pet tooltip */
+.tip{position:absolute;width:300px;max-width:calc(100% - 24px);background:linear-gradient(180deg,#1b2330,#121821);border:1px solid #3b4658;border-radius:6px;box-shadow:0 12px 40px #000a;z-index:5;overflow:hidden}
+.tip .hd{display:grid;grid-template-columns:1fr 92px;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 38%,#151b24),#151b24 70%);border-bottom:1px solid #3b4658;position:relative}
+.tip .hd .t{padding:10px 12px;min-width:0}
+.tip .hd h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.15rem;line-height:1.15;color:#fff;text-wrap:balance}
+.tip .hd .fam{font-size:.8rem;color:var(--c);font-weight:700;margin-top:3px}
+.tip .hd img{width:92px;height:92px;object-fit:cover;display:block}
+.tip .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;background:#0009;color:#fff;border-radius:4px;cursor:pointer}
+.tip .bd{padding:10px 12px;display:grid;gap:10px;max-height:min(60vh,520px);overflow:auto}
+.tip h3{margin:0 0 4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:#7fd6e8;font-weight:600}
+.bar{height:6px;background:#0b0f14;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar span{display:block;height:100%;background:var(--gold)}
+.lvl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.8rem}
+.eff{display:grid;gap:3px}
+.eff .l{display:grid;grid-template-columns:38px 1fr;gap:6px;font-size:.82rem;color:var(--muted)}
+.eff .l.on{color:var(--ink)}
+.eff .l b{font-family:var(--mono);font-weight:500;color:var(--gold)}
+.src{display:grid;gap:3px;font-size:.82rem}
+.src div{display:flex;justify-content:space-between;gap:8px}
+.src .m{font-family:var(--mono);color:var(--muted);font-size:.75rem;white-space:nowrap}
+.spot{font-size:.85rem;display:grid;gap:2px}
+.spot .a{font-weight:700;color:#fff}
+.spot .m{color:var(--muted);font-size:.78rem}
+.setlv{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px;font-size:.72rem;color:var(--muted)}
+.setlv span{margin-right:2px;text-transform:uppercase;letter-spacing:.08em}
+.setlv button{font:inherit;font-size:.75rem;font-weight:600;color:var(--ink);background:#0d1117;border:1px solid var(--line);border-radius:4px;padding:3px 7px;cursor:pointer}
+.setlv button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.tag{display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#3a1f2a;color:#ff9fb8;margin-left:6px;vertical-align:1px}
+.empty{padding:20px 14px;color:var(--muted)}
+@media (max-width:760px){
+  main{grid-template-columns:1fr;grid-template-rows:1fr 38%}
+  aside{order:2;border-right:0;border-top:1px solid var(--line)}
+  .legend{display:none}
+  h1{font-size:1.05rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Pet Soul Atlas</h1>
+    <div class="grp" role="group" aria-label="Zone">
+      <button class="chip zone" data-z="V" aria-pressed="true">Verteron</button>
+      <button class="chip zone" data-z="A" aria-pressed="false">Altgard</button>
+      <button class="chip zone" data-z="R" aria-pressed="false">Abyss</button>
+      <button class="chip" id="excl" aria-pressed="false" title="Show only pets that spawn in this zone and not the other">Only spawns here</button>
+      <button class="chip" id="zones" aria-pressed="false">Area borders</button>
+    </div>
+    <div class="grp" role="group" aria-label="Family" id="fams"></div>
+    <div class="grp" role="group" aria-label="Collection" id="stats"></div>
+    <div class="search"><input id="q" type="search" placeholder="Search pet or monster" aria-label="Search pet or monster"></div>
+  </header>
+  <main>
+    <aside>
+      <div class="sum" id="sum"></div>
+      <div class="list" id="list"></div>
+    </aside>
+    <div class="mapwrap" id="wrap">
+      <svg id="map" aria-label="Zone map"></svg>
+      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit map">⤢</button></div>
+      <div class="legend">
+        <div><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="6" fill="var(--natura)"/><circle r="8" fill="none" stroke="var(--gold)" stroke-width="2"/></svg>Maxed (level 3)</div>
+        <div><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="6" fill="var(--natura)"/></svg>Owned, still leveling</div>
+        <div><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="6" fill="var(--natura)"/><circle r="2.4" fill="#14100a"/></svg>Not owned yet</div>
+      </div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const FAMS = [["cogni","Cogni"],["fera","Fera"],["natura","Natura"],["varian","Varian"],["special","Special"]];
+const STATUS = [["all","All"],["missing","Not owned"],["leveling","Leveling"],["max","Maxed"]];
+const NEED = {0:5,1:25,2:75};
+// map art per zone: half-width of the image in stored units (game coords / 100)
+const ZONES = {V:{name:"Verteron",img:"verteron.webp",ext:4080}, A:{name:"Altgard",img:"altgard.webp",ext:4080}, R:{name:"Abyss",img:"abyss.webp",ext:2040}};
+const zn=z=>ZONES[z].name;
+const st = {lv:{}, zone:"V", excl:false, fams:new Set(FAMS.map(f=>f[0])), status:"all", q:"", sel:null, done:null};
+try{ const s=JSON.parse(localStorage.getItem("petatlas")||"{}"); if(ZONES[s.zone]) st.zone=s.zone; if(s.status) st.status=s.status; if(Array.isArray(s.fams)) st.fams=new Set(s.fams); if(s.excl) st.excl=true; if(Array.isArray(s.done)) st.done=new Set(s.done); if(s.lv&&typeof s.lv==="object") st.lv=s.lv; }catch(e){}
+// a viewer's own level choice wins over the level baked into the page
+function lv(p){ return st.lv[p.id]!=null ? st.lv[p.id] : p.lvl; }
+function pg(p){ return st.lv[p.id]!=null ? 0 : p.prog; }
+// first visit: maxed pets start out checked off, since there's nothing left to farm
+if(!st.done) st.done=new Set(DATA.pets.filter(p=>lv(p)===3).map(p=>p.id));
+const save=()=>{try{localStorage.setItem("petatlas",JSON.stringify({zone:st.zone,status:st.status,fams:[...st.fams],excl:st.excl,done:[...st.done],lv:st.lv}))}catch(e){}};
+const zonesOf=p=>Object.keys(ZONES).filter(z=>p.sp[z]);
+const $=id=>document.getElementById(id);
+const famName=f=>FAMS.find(x=>x[0]===f)[1];
+const statusOf=p=>lv(p)===3?"max":lv(p)>0?"leveling":"missing";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// header controls
+$("fams").innerHTML='<span class="lbl">Family</span>'+FAMS.map(([k,n])=>`<button class="chip" data-f="${k}" style="--c:var(--${k})"><span class="dot"></span>${n}</button>`).join("");
+$("stats").innerHTML='<span class="lbl">Show</span>'+STATUS.map(([k,n])=>`<button class="chip" data-s="${k}">${n}</button>`).join("");
+$("fams").onclick=e=>{const b=e.target.closest("[data-f]"); if(!b) return; const f=b.dataset.f; st.fams.has(f)?st.fams.delete(f):st.fams.add(f); if(!st.fams.size) FAMS.forEach(x=>st.fams.add(x[0])); save(); render();};
+$("stats").onclick=e=>{const b=e.target.closest("[data-s]"); if(!b) return; st.status=b.dataset.s; save(); render();};
+document.querySelectorAll("[data-z]").forEach(b=>b.onclick=()=>{st.zone=b.dataset.z; closeTip(); save(); drawMap(); render();});
+$("excl").onclick=()=>{st.excl=!st.excl; save(); render();};
+$("zones").onclick=()=>{const on=!$("wrap").classList.contains("showzones"); $("wrap").classList.toggle("showzones",on); $("zones").setAttribute("aria-pressed",on);};
+$("q").oninput=e=>{st.q=e.target.value.trim().toLowerCase(); render();};
+
+function visible(p){
+  if(!st.fams.has(p.f)) return false;
+  if(st.status!=="all" && statusOf(p)!==st.status) return false;
+  if(st.q && !(p.n.toLowerCase().includes(st.q) || p.src.some(s=>s.n.toLowerCase().includes(st.q)))) return false;
+  return true;
+}
+
+// ---------- map ----------
+const svg=$("map"), NS="http://www.w3.org/2000/svg";
+let vb={x:0,y:0,w:1,h:1}, home=null, gPins=null;
+function el(t,a,parent){const e=document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); parent&&parent.appendChild(e); return e;}
+function drawMap(){
+  svg.innerHTML="";
+  const regs=DATA.regions[st.zone];
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  // in-game world map art: covers -ext..ext game units on both axes (stored /100, y flipped)
+  const Z=ZONES[st.zone];
+  el("image",{href:Z.img,x:-Z.ext,y:-Z.ext,width:Z.ext*2,height:Z.ext*2,preserveAspectRatio:"none"},svg);
+  const gR=el("g",{},svg), gL=el("g",{},svg);
+  // big regions first so small ones sit on top
+  const sorted=[...regs].sort((a,b)=>a.r-b.r);
+  for(const r of sorted){
+    for(const poly of r.p){
+      const pts=poly.map(([x,y])=>x+","+(-y)).join(" ");
+      el("polygon",{points:pts,class:"rg"+(r.k==="village"?" v":"")},gR);
+    }
+  }
+  for(const r of regs){
+    const t=el("text",{x:r.l[0],y:-r.l[1],class:"rl"+(r.r>1?" small":""),"data-r":r.r},gL); t.textContent=r.n;
+  }
+  gPins=el("g",{},svg);
+  // frame the map on area labels and pet spots, so stray far-off outline points don't shrink it
+  const fx=[], fy=[];
+  regs.forEach(r=>{ fx.push(r.l[0]); fy.push(-r.l[1]); });
+  DATA.pets.forEach(p=>{ const z=p.sp[st.zone]; if(z) z.s.forEach(s=>{ fx.push(s.x); fy.push(-s.y); }); });
+  x0=Math.min(...fx); x1=Math.max(...fx); y0=Math.min(...fy); y1=Math.max(...fy);
+  const pad=180; home={x:x0-pad,y:y0-pad,w:x1-x0+pad*2,h:y1-y0+pad*2};
+  fit();
+}
+function fit(){ const r=svg.getBoundingClientRect(); const ar=r.width/Math.max(r.height,1); let {x,y,w,h}=home; if(w/h<ar){const nw=h*ar; x-=(nw-w)/2; w=nw;} else {const nh=w/ar; y-=(nh-h)/2; h=nh;} vb={x,y,w,h}; applyVB(); }
+function upp(){ return vb.w/Math.max(svg.getBoundingClientRect().width,1); }
+function applyVB(){
+  svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const u=upp();
+  svg.querySelectorAll(".rl").forEach(t=>{ const r=+t.dataset.r; t.setAttribute("font-size",(r>1?10:13)*u); t.style.strokeWidth=3*u; t.style.display=(r>1&&u>4.5)?"none":""; });
+  if(gPins) gPins.querySelectorAll(".pin").forEach(g=>scalePin(g,u));
+  placeTip();
+}
+function scalePin(g,u){ const s=(g.dataset.sel==="1"?1.5:1)*(g.dataset.rank==="0"?1:0.72); g.setAttribute("transform",`translate(${g.dataset.x},${g.dataset.y}) scale(${u*s})`); }
+function zoomAt(f,cx,cy){ const r=svg.getBoundingClientRect(); const px=vb.x+(cx-r.left)/r.width*vb.w, py=vb.y+(cy-r.top)/r.height*vb.h; const nw=Math.min(Math.max(vb.w*f,home.w*0.06),home.w*2.5), k=nw/vb.w; vb={x:px-(px-vb.x)*k,y:py-(py-vb.y)*k,w:nw,h:vb.h*k}; applyVB(); }
+svg.addEventListener("wheel",e=>{e.preventDefault(); zoomAt(e.deltaY>0?1.18:1/1.18,e.clientX,e.clientY);},{passive:false});
+const ptrs=new Map(); let drag=null, pinch=null, moved=false;
+svg.addEventListener("pointerdown",e=>{ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=false; if(ptrs.size===1){drag={x:e.clientX,y:e.clientY,vb:{...vb}}; svg.classList.add("drag");} else if(ptrs.size===2){const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)}; drag=null;} });
+svg.addEventListener("pointermove",e=>{ if(!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); zoomAt(pinch.d/d,(a.x+b.x)/2,(a.y+b.y)/2); pinch.d=d; moved=true; return;}
+  if(drag){ const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>4){ moved=true; if(!svg.hasPointerCapture(e.pointerId)) svg.setPointerCapture(e.pointerId);} const r=svg.getBoundingClientRect(); vb.x=drag.vb.x-dx/r.width*vb.w; vb.y=drag.vb.y-dy/r.height*vb.h; applyVB(); } });
+const endPtr=e=>{ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null; if(!ptrs.size){drag=null; svg.classList.remove("drag");}};
+svg.addEventListener("pointerup",endPtr); svg.addEventListener("pointercancel",endPtr);
+$("zin").onclick=()=>{const r=svg.getBoundingClientRect(); zoomAt(1/1.4,r.left+r.width/2,r.top+r.height/2);};
+$("zout").onclick=()=>{const r=svg.getBoundingClientRect(); zoomAt(1.4,r.left+r.width/2,r.top+r.height/2);};
+$("zfit").onclick=fit;
+addEventListener("resize",()=>{ if(home) fit(); });
+
+function pinFor(p,sp,rank){
+  const g=el("g",{class:"pin",tabindex:"0","data-id":p.id,"data-rank":rank,"data-x":sp.x,"data-y":-sp.y,role:"button","aria-label":p.n},gPins);
+  const c=`var(--${p.f})`, s=statusOf(p);
+  el("circle",{r:7,fill:c,class:"body","stroke-width":1.5},g);
+  if(s==="missing") el("circle",{r:2.8,fill:"#14100a"},g);
+  if(s==="max") el("circle",{r:10,fill:"none",stroke:"var(--gold)","stroke-width":2.2},g);
+  const t=el("title",{},g); t.textContent=`${p.n} · ${sp.a}`;
+  g.addEventListener("click",e=>{ if(moved) return; e.stopPropagation(); select(p.id,false,rank); });
+  g.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault(); select(p.id,false,rank);} });
+  scalePin(g,upp());
+}
+svg.addEventListener("click",()=>{ if(!moved) closeTip(); });
+
+// ---------- list + pins ----------
+function render(){
+  document.querySelectorAll("[data-z]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.z===st.zone));
+  $("excl").setAttribute("aria-pressed",st.excl); $("excl").textContent=`Only spawns in ${zn(st.zone)}`;
+  document.querySelectorAll("[data-f]").forEach(b=>b.setAttribute("aria-pressed",st.fams.has(b.dataset.f)));
+  document.querySelectorAll("[data-s]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===st.status));
+  const here=p=>p.sp[st.zone] && visible(p) && (!st.excl || zonesOf(p).length===1);
+  const onMap=DATA.pets.filter(p=>here(p) && !st.done.has(p.id));
+  const doneHere=DATA.pets.filter(p=>here(p) && st.done.has(p.id));
+  const off=DATA.pets.filter(p=>!zonesOf(p).length && visible(p));
+  gPins.innerHTML="";
+  const order={missing:0,leveling:1,max:2};
+  onMap.sort((a,b)=>order[statusOf(a)]-order[statusOf(b)]).forEach(p=>pinFor(p,p.sp[st.zone].s[0],0));
+  const all=DATA.pets, owned=all.filter(p=>lv(p)>0).length, maxed=all.filter(p=>lv(p)===3).length;
+  $("sum").innerHTML=`<span><b>${onMap.length}</b> on this map · <b>${st.done.size}</b> collected</span><span>Owned <b>${owned}</b>/${all.length} · Max <b>${maxed}</b></span>`;
+  const row=p=>{const s=statusOf(p); const tag=s==="max"?'<span class="st max">MAX</span>':s==="leveling"?`<span class="st lv">Lv${lv(p)}${pg(p)?` ${pg(p)}/${NEED[lv(p)]}`:""}</span>`:`<span class="st no">${pg(p)?pg(p)+"/5":"New"}</span>`;
+    const sp=p.sp[st.zone]; const sub=sp?esc(sp.s[0].a):esc(p.else.join(", ")||"Event / other");
+    const zs=zonesOf(p); const only=zs.length===1?`<span class="only">${zn(zs[0])} only</span>`:"";
+    const done=st.done.has(p.id);
+    return `<div class="row${st.sel===p.id?" sel":""}${done?" isdone":""}" tabindex="0" data-id="${p.id}" style="--c:var(--${p.f})"><img src="${p.img}" alt=""><div style="min-width:0"><div class="nm">${esc(p.n)}</div><div class="sub">${only}${sub}</div></div>${tag}<button class="done" data-done="${p.id}" aria-pressed="${done}" title="${done?"Collected. Click to put it back on the map":"Mark collected (hides it from the map)"}" aria-label="${done?"Unmark":"Mark"} ${esc(p.n)} collected">✓</button></div>`;};
+  const byName=(a,b)=>order[statusOf(a)]-order[statusOf(b)]||a.n.localeCompare(b.n);
+  let h=onMap.length?`<div class="sect">On the ${zn(st.zone)} map</div>`+[...onMap].sort(byName).map(row).join(""):`<div class="empty">Nothing left to farm here with these filters.</div>`;
+  if(off.length && !st.excl) h+=`<div class="sect">Not on any map (dungeon, event, shop)</div>`+off.sort(byName).map(row).join("");
+  if(doneHere.length) h+=`<div class="sect">Collected · hidden from map</div>`+doneHere.sort(byName).map(row).join("");
+  $("list").innerHTML=h;
+  if(st.sel) highlight(st.sel);
+}
+function toggleDone(id){ st.done.has(id)?st.done.delete(id):st.done.add(id); save(); if(st.done.has(id)&&st.sel===id) closeTip(); render(); }
+$("list").addEventListener("click",e=>{const d=e.target.closest("[data-done]"); if(d){ e.stopPropagation(); toggleDone(d.dataset.done); return; } const r=e.target.closest(".row"); if(r) select(r.dataset.id,true);});
+$("list").addEventListener("keydown",e=>{ if(e.target.closest("[data-done]")) return; const r=e.target.closest(".row"); if(r&&(e.key==="Enter"||e.key===" ")){e.preventDefault(); select(r.dataset.id,true);}});
+
+function highlight(id){
+  gPins.querySelectorAll(".pin").forEach(g=>{g.dataset.sel=g.dataset.id===id?"1":"0"; scalePin(g,upp());});
+  const g=gPins.querySelector(`.pin[data-id="${id}"]`); if(g) gPins.appendChild(g);
+  document.querySelectorAll(".row").forEach(r=>r.classList.toggle("sel",r.dataset.id===id));
+}
+function select(id,fromList){
+  const p=DATA.pets.find(x=>x.id===id); st.sel=id;
+  if(fromList && !p.sp[st.zone] && zonesOf(p).length){ st.zone=zonesOf(p)[0]; save(); drawMap(); render(); }
+  highlight(id);
+  const sp=p.sp[st.zone]&&p.sp[st.zone].s[0];
+  if(fromList && sp){ const cx=sp.x, cy=-sp.y; const w=Math.min(vb.w,home.w*0.45), h=vb.h*w/vb.w; vb={x:cx-w/2,y:cy-h/2,w,h}; applyVB(); }
+  showTip(p);
+}
+
+// ---------- tooltip ----------
+function showTip(p){
+  const s=statusOf(p), sp=p.sp[st.zone], others=zonesOf(p).filter(z=>z!==st.zone);
+  const need=NEED[lv(p)]||0, pct=lv(p)===3?100:Math.min(100,pg(p)/(lv(p)===0?5:need)*100);
+  const lvlTxt=s==="max"?"Level 3 · MAX":s==="leveling"?`Level ${lv(p)}${pg(p)?` · ${pg(p)}/${need} souls`:""}`:`Not owned${pg(p)?` · ${pg(p)}/5 souls`:""}`;
+  const setlv=`<div class="setlv" role="group" aria-label="Set my level"><span>My level</span>${[[0,"Not owned"],[1,"Lv1"],[2,"Lv2"],[3,"Max"]].map(([n,l])=>`<button data-lv="${n}" aria-pressed="${lv(p)===n}">${l}</button>`).join("")}</div>`;
+  const effects=p.lvs.map(l=>`<div class="l${lv(p)>=l.lv?" on":""}"><span>Lv${l.lv}</span><span>${l.s.map(([n,v])=>`${esc(n)} <b>+${v}</b>`).join(" · ")}</span></div>`).join("");
+  const srcs=p.src.map(s=>`<div><span>${esc(s.n)}</span><span class="m">Lv${s.lv??"?"}${s.t&&s.t!=="normalmonster"?" · "+esc(s.t.replace("monster","")):""}${s.w.length?" · "+s.w.map(zn).join(", "):""}</span></div>`).join("")||'<div><span class="m">No monster source listed (event or shop pet)</span></div>';
+  let spot="";
+  if(sp){ const b=sp.s[0];
+    spot+=`<div class="spot"><div class="a">${esc(b.a)}${!others.length?`<span class="tag">${zn(st.zone)} only</span>`:""}</div><div class="m">${b.k} spawns around this pin · ${sp.t} in ${zn(st.zone)}</div></div>`;
+    if(sp.s.length>1) spot+=`<div class="spot"><div class="m">Also good: ${sp.s.slice(1).map(x=>`${esc(x.a)} (${x.k})`).join(" · ")}</div></div>`; }
+  others.forEach(z=>{ spot+=`<div class="spot"><div class="m">Also in ${zn(z)}: ${esc(p.sp[z].s[0].a)} (${p.sp[z].t} spawns)</div></div>`; });
+  if(!sp&&!others.length) spot+=`<div class="spot"><div class="m">${esc(p.else.join(", ")||"Event, shop or special source")}</div></div>`;
+  const t=$("tip");
+  t.style.setProperty("--c",`var(--${p.f})`);
+  t.innerHTML=`<div class="hd"><div class="t"><h2>${esc(p.n)}</h2><div class="fam">${famName(p.f)}</div></div><img src="${p.img}" alt=""><button class="x" aria-label="Close">×</button></div>
+  <div class="bd"><div><div class="lvl"><span>${lvlTxt}</span></div><div class="bar"><span style="width:${pct}%"></span></div>${setlv}</div>
+  <div><h3>Best spot</h3>${spot}</div>
+  <div><h3>Owned effect</h3><div class="eff">${effects}</div></div>
+  <div><h3>Souls drop from</h3><div class="src">${srcs}</div></div></div>`;
+  t.hidden=false; t.querySelector(".x").onclick=closeTip;
+  t.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>{ st.lv[p.id]=+b.dataset.lv; save(); render(); showTip(p); }); placeTip();
+}
+function placeTip(){
+  const t=$("tip"); if(t.hidden||!st.sel) return;
+  const wrap=$("wrap").getBoundingClientRect(), g=gPins&&gPins.querySelector(`.pin[data-id="${st.sel}"]`);
+  let x=wrap.width-t.offsetWidth-56, y=12;
+  if(g){ const r=g.getBoundingClientRect(); x=r.right-wrap.left+14; y=r.top-wrap.top-20; if(x+t.offsetWidth>wrap.width-8) x=r.left-wrap.left-t.offsetWidth-14; }
+  x=Math.max(8,Math.min(x,wrap.width-t.offsetWidth-8)); y=Math.max(8,Math.min(y,wrap.height-t.offsetHeight-8));
+  t.style.left=x+"px"; t.style.top=y+"px";
+}
+function closeTip(){ $("tip").hidden=true; st.sel=null; if(gPins) highlight(null); }
+addEventListener("keydown",e=>{ if(e.key==="Escape") closeTip(); });
+
+drawMap(); render();
+</script>
